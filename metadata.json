@@ -1,0 +1,7 @@
+{
+  "name": "Wheels & Keys Staff Portal",
+  "description": "A specialized activity logging and payroll submission tool for Wheels & Keys staff, featuring bi-monthly cycles, AI-powered log optimization, and automated deadline tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
