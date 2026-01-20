@@ -1,30 +1,56 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ActivityCategory } from "../types";
+import { ActivityCategory, Activity } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export async function optimizeActivityDescription(task: string, description: string): Promise<string> {
+export async function optimizeActivityDescription(activity: Partial<Activity>): Promise<Partial<Activity>> {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are an expert operations assistant for "Wheels & Keys", an automotive locksmith and security firm. 
-      Professionalize this activity log for HR payroll.
+      Professionalize this structured activity log for a formal corporate report. 
       
-      Task: ${task}
-      Draft: ${description}
+      Task: ${activity.task}
+      Accomplishments: ${activity.accomplishments}
+      Impact: ${activity.positiveImpact}
+      Challenges: ${activity.challenges}
+      Resolution: ${activity.overcomingChallenges}
+      Future: ${activity.futurePlans}
+      Strategy: ${activity.achievementStrategy}
+      Benefit: ${activity.companyBenefit}
       
-      Output ONLY the refined description.`,
+      Output a JSON object with the refined, professional versions of the text for each key.`,
       config: {
         temperature: 0.7,
-        maxOutputTokens: 150,
-        thinkingConfig: { thinkingBudget: 50 }
+        responseMimeType: "application/json",
+        // Using responseSchema to ensure the model adheres to the expected JSON structure.
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            accomplishments: { type: Type.STRING },
+            positiveImpact: { type: Type.STRING },
+            challenges: { type: Type.STRING },
+            overcomingChallenges: { type: Type.STRING },
+            futurePlans: { type: Type.STRING },
+            achievementStrategy: { type: Type.STRING },
+            companyBenefit: { type: Type.STRING }
+          },
+          required: ["accomplishments", "positiveImpact", "challenges", "overcomingChallenges", "futurePlans", "achievementStrategy", "companyBenefit"]
+        }
       }
     });
-    return response.text?.trim() || description;
+    
+    try {
+      // Accessing response.text as a property as per current SDK guidelines.
+      const result = JSON.parse(response.text || '{}');
+      return { ...activity, ...result };
+    } catch {
+      return activity;
+    }
   } catch (error) {
     console.error("Gemini optimization error:", error);
-    return description;
+    return activity;
   }
 }
 
@@ -39,6 +65,7 @@ export async function suggestCategory(task: string): Promise<ActivityCategory> {
         maxOutputTokens: 20
       }
     });
+    // response.text is a getter property.
     const result = response.text?.trim() as ActivityCategory;
     const validCategories: ActivityCategory[] = ['Maintenance', 'Customer Service', 'Locksmith', 'Transport', 'Admin', 'Other'];
     return validCategories.includes(result) ? result : 'Other';
@@ -47,20 +74,21 @@ export async function suggestCategory(task: string): Promise<ActivityCategory> {
   }
 }
 
-export async function generatePeriodSubmissionSummary(activities: any[]): Promise<string> {
+export async function generatePeriodSubmissionSummary(activities: Activity[]): Promise<string> {
   try {
-    const data = activities.map(a => `${a.category}: ${a.task} (${a.durationHours}h)`).join('\n');
+    const data = activities.map(a => `- ${a.task}: ${a.positiveImpact} (Benefit: ${a.companyBenefit})`).join('\n');
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Summarize this payroll period's work for "Wheels & Keys" staff. Create a professional, punchy summary of major accomplishments.
+      contents: `Summarize this payroll period's work for "Wheels & Keys" staff. Focus on organizational growth and overcoming obstacles.
       
       Activities:
       ${data}
       
-      Output 2-3 sentences max.`,
+      Output a professional, punchy 3-sentence executive summary.`,
     });
-    return response.text?.trim() || "Work period successfully completed and logged.";
+    // response.text is a getter property.
+    return response.text?.trim() || "Work period successfully completed with focus on operational efficiency and strategic growth.";
   } catch {
-    return "Summary generated automatically based on logged hours.";
+    return "Summary generated automatically based on logged achievements and future strategic plans.";
   }
 }
